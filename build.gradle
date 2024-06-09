@@ -1,0 +1,49 @@
+/*
+ * Copyright (c) 2020 by Delphix. All rights reserved.
+ */
+buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+    }
+    dependencies {
+        classpath files("${project.rootDir}/libs/masking-algorithm-api-${maskingAlgoVer}.jar")
+        classpath files("${project.rootDir}/libs/semantic-version-${semanticVer}.jar")
+        classpath files("${project.rootDir}/libs/javapasswordsdk.jar")
+    }
+}
+
+import com.delphix.masking.api.plugin.utils.PluginMetadata
+
+apply plugin: 'idea'
+apply plugin: 'java'
+
+repositories {
+    jcenter()
+    mavenLocal()
+}
+
+jar {
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    includeEmptyDirs = false
+
+    manifest {
+        attributes(
+                (PluginMetadata.PLUGIN_NAME_KEY)       : "ransomCheck",
+                (PluginMetadata.AUTHOR_NAME_KEY)       : "Fabio Di Loreto",
+                (PluginMetadata.PLUGIN_VERSION_KEY)    : "1.0",
+                (PluginMetadata.ALGORITHM_API_VERSION_KEY): "$maskingAlgoVer",
+                'Build-Timestamp': new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(new Date()),
+                'Created-By'     : "Gradle ${gradle.gradleVersion}",
+                'Build-Jdk'      : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+                'Build-OS'       : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}",
+        )
+    }
+}
+
+dependencies {
+    compileOnly fileTree(dir: "${project.rootDir}/libs", include: '*.jar')
+    implementation files('/libs/javapasswordsdk.jar')
+}
