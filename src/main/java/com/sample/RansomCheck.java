@@ -103,13 +103,13 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
  
 	@Override
 	public GenericDataRow mask(@Nullable GenericDataRow genericData) throws MaskingException {
-		ArrayList<WhereCondition> wheres = new ArrayList<WhereCondition>();
+		// ArrayList<WhereCondition> wheres = new ArrayList<WhereCondition>();
 		try {
         	
         	// reading the column values
     		GenericData databaseId = genericData.get("DATABASE_ID");
     		GenericData tableId = genericData.get("TABLE_ID");
-			// GenericData columnId = genericData.get("COLUMN_ID");
+			GenericData columnId = genericData.get("COLUMN_ID");
     		GenericData res = genericData.get("RESULT");
     		GenericData currentDate = genericData.get("TIMESTAMP");
 
@@ -118,40 +118,37 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			// ad un tipo core come string
     		String db = databaseId.getStringValue();
     		String table = tableId.getStringValue();
+			String col = columnId.getStringValue();
     		connection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType),db_hostname,db_port,db_instance,db_addParams,db_username,db_password );
-    		ResultSet rs = toolbox.executeQuery(connection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_ID, COLUMN_NAME, LEGAL_ENTITY, OBJECT_NAME, USERNAME, PASSWORD FROM "+db_schema+".CHECK_VIEW WHERE DB_ID = " + db + " AND TABLE_ID = " + table);
+    		ResultSet rs = toolbox.executeQuery(connection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, LEGAL_ENTITY, OBJECT_NAME, USERNAME, PASSWORD FROM "+db_schema+".CHECK_VIEW WHERE DB_ID = " + db + " AND TABLE_ID = " + table + " AND COLUMN_ID = " + col);
     		
-    		boolean check = false; // cosa indicherebbe?
+    		boolean check = false;
     		String tecnologia = "";
     		String host = "";
     		String port = "";
     		String sid_service = "";
     		String schema = "";
     		String tableName = "";
-    		HashMap<String, String> columnsIdName = new HashMap<String, String>();
-    		String legalEntity = "";
-    		String objectName = "";
+    		String columnName = "";
+    		// String legalEntity = "";
+    		// String objectName = "";
     		String username = "";
     		String password = "";
     		
     		if(rs != null) {
-    			while(rs.next()) {
-    				if(!check) {
+    			if(!check) {
     					tecnologia = rs.getString(1).split(" ")[0];
     		    		host = rs.getString(2);
     		    		port = rs.getString(3);
     		    		sid_service = rs.getString(4);
     		    		schema = rs.getString(5);
     		    		tableName = rs.getString(6);
-    		    		columnsIdName.put(rs.getString(7), rs.getString(8));
-    		    		legalEntity = rs.getString(9);
-    		    		objectName = rs.getString(10);
+    		    		columnName = rs.getString(7);
+    		    		// legalEntity = rs.getString(9);
+    		    		// objectName = rs.getString(10);
     		    		username = rs.getString(11);
     		    		password = rs.getString(12);
     		    		check = true;
-    				}
-    				else
-						columnsIdName.put(rs.getString(7), rs.getString(8));
     			}
     		}
     		rs.close();
@@ -161,28 +158,26 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			 * in oggetto. db id  e table id vengono passati come argomenti --> come li indico?
 			*/
     		
-    		if(check) {
-				ResultSet checkCol_ids = toolbox.executeQuery(connection, "SELECT DISTINCT ID, COLUMN_ID  FROM "+db_schema+".CHECK_2 WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"'");
+    		// if(check) {
+				// ResultSet checkCol_ids = toolbox.executeQuery(connection, "SELECT DISTINCT ID, COLUMN_ID  FROM "+db_schema+".CHECK_2 WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"'");
 	    		
-				while(checkCol_ids.next()) {
+				// while(checkCol_ids.next()) {
 					// String ColumnName = columnsNameId.get(checkCol_ids.getString(2));
 					
 					ArrayList<String> values_list = new ArrayList<String>();
+					ResultSet values_rs = toolbox.executeQuery(connection, 
+											"SELECT DISTINCT VALUE FROM "+db_schema+".CHECK_BASE WHERE ID = ANY (SELECT DISTINCT ID_BASE FROM "+db_schema+".CHECK_LINK WHERE ID_CHECK = (SELECT DISTINCT ID FROM "+db_schema+".CHECK_2 WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"' AND COLUMN_ID = '"+col+"'))");
 
-					ResultSet values = toolbox.executeQuery(connection, 
-											"SELECT DISTINCT VALUES FROM "+db_schema+".CHECK_BASE WHERE ID IN (SELECT DISTINCT ID_BASE FROM "+db_schema+".CHECK_LINK WHERE ID_CHECK = '"+checkCol_ids.getString(1)+"'");
-					if(values!=null) {
-						while(values.next()) {
-							values_list.add(values.getString(1));
+						while(values_rs.next()) {
+							values_list.add(values_rs.getString(1));
 						}
-					}
-					WhereCondition condizione = new WhereCondition(values_list);
-					condizione.setCol(columnsIdName.get(checkCol_ids.getString(2)));
-					condizione.setColId(checkCol_ids.getString(2));
-					wheres.add(condizione);
-					values.close();
-				}
-				checkCol_ids.close();
+						WhereCondition condizione = new WhereCondition(values_list);
+						condizione.setCol(columnName);
+						// wheres.add(condizione);
+	
+					// values.close();
+
+				// checkCol_ids.close();
 				// abbiamo una wherecondition per ogni colonna della tabella interessata e ciscuna ha una lsita di valori da controllare
 				// per la relativa colonna.
 			
@@ -226,7 +221,8 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 
 	    		// for(<Entry<String, String>> col: col_it) {
 				String checkQuery = "SELECT ";
-					for (WhereCondition where : wheres) { // inefficente, controlla le colonne anche per tutti i tipi di dati degli algortmi in check_algo
+				if(condizione != null) {
+					 // inefficente, controlla le colonne anche per tutti i tipi di dati degli algortmi in check_algo
 														  // quindi anche tipi di dati che i valori nelle colonne non assumono
 					/* potrei fare un hashmap. Al posto della lista coloumns con i nomi di tutte le colonne, si crea un hashmap con nomecolonna->algoritmo 
 					*  che gestisce tipi di dati in quella colonna. Alla vista check_view deve essere aggiunta una colonna con il nome o i nomi degli algoritmi
@@ -235,9 +231,9 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 					* che valuta se il tipo dell'oggetto where(nome algoritmo) è pari a uno degli algoritmi associati al nome della colonna nell'hashmap, true aggiunge
 					* porzione query, FALSE non aggiunge porzione query*/
 						
-	    				checkQuery += ""+where.getWhere()+"";
+	    				checkQuery += ""+condizione.getWhere()+"";
 						checkQuery = checkQuery.substring(0, checkQuery.length() - 7);
-						checkQuery += " AS "+where.getColId()+",";
+						checkQuery += " AS "+col+"";
 	    			}
 
 				// });
@@ -246,9 +242,9 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 				// SELECT 'ALGO_1:'0';''ALGO_2:'1';'...COLOUMN_NAME,  - esempio
 				// questo per ciascuna colonna trovata(COLOUMN_NAME) IN CHECK_VIEW, per ciascuna tabella quando si ripete ciclo
 				// query finale : SELECT 'ALGO_1:'0/1';''ALGO_2:'0/1';'...COLOUMN_NAME,'ALGO_1:'0/1';''ALGO_2:'0/1';'...COLOUMN_NAME,.....
-	    		checkQuery = checkQuery.substring(0, checkQuery.length() - 1); // deve toglier ultima virgola
+	    		// checkQuery = checkQuery.substring(0, checkQuery.length() - 1); // deve toglier ultima virgola
 	    		
-	    		String additionalParams = null;
+	    		
 //		        CYBERARK INTEGRATION
 				// Create a trust manager that does not validate certificate chains
 //		        TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
@@ -293,6 +289,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 //				JSONParser parser = new JSONParser();
 //				JSONObject json = (JSONObject) parser.parse(content.toString());
 //				String pwd = (String) json.get("Content");
+				String additionalParams = null;
 				String pwd = password;
 	    		if(tecnologia.equals("DB2"))
 					additionalParams = ":securityMechanism=9;encryptionAlgorithm=2;defaultIsolationLevel=1;";
@@ -300,20 +297,21 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	    		
 	    		logger.info(checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
 				ResultSet risultato = toolbox.executeQuery(connessione, checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
-				ResultSet result_exp = toolbox.executeQuery(connessione, "SELECT C.COLUMN_ID, B.VALUE, B.RES_ATTESO FROM "+db_schema+".CHECK_2 AS C JOIN "+db_schema+".CHECK_LINK AS L ON C.ID = L.ID_CHECK JOIN CHECK_BASE AS B ON L.ID_BASE = B.ID WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"'");
+				// ResultSet result_exp = toolbox.executeQuery(connessione, "SELECT C.COLUMN_ID, B.VALUE, B.RES_ATTESO FROM "+db_schema+".CHECK_2 AS C JOIN "+db_schema+".CHECK_LINK AS L ON C.ID = L.ID_CHECK JOIN CHECK_BASE AS B ON L.ID_BASE = B.ID WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"'");
 				// 
 	    		JSONObject totalResult = new JSONObject();
-	    		ResultSetMetaData meta = risultato.getMetaData();
-	    		int colCount = meta.getColumnCount();
+	    		// ResultSetMetaData meta = risultato.getMetaData();
+	    		// int colCount = meta.getColumnCount();
 				/* ArrayList<String> algos = condizione.getValues();
-				int ln = algos.size(); */
+				int ln = algos.size(); 
 	    		while(risultato.next())
 	    		{
 	    		    for (int c=1; c <= colCount; c++) 
 	    		    {
+				*/
 	    		    	HashMap<String, String> val = new HashMap<String, String>();
-						HashMap<String, String> val_exp = new HashMap<String, String>();
-	    		    	String results = risultato.getString(c);
+						// HashMap<String, String> val_exp = new HashMap<String, String>();
+	    		    	String results = risultato.getString(1);
 						// Connection conn = toolbox.prepareDBConnection(databaseType.valueOf(tecnologia), host, port, sid_service, additionalParams, username, pwd);
 						/* ResultSet res_set = toolbox.executeQuery(conn, "SELECT COUNT(DISTINCT NAME) FROM "+db_schema+".CHECK_ALGO WHERE LEGAL_ENTITY = '" + legalEntity + "'");
 						res_set.next();
@@ -321,7 +319,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 						conn.close(); */
 	    		    	if(results != null)
 		    		    	if(results.split(":;", -1).length-1 != 2 && // check verifica bug in scrittura (?)
-								results.split(":0", -1).length-1 != wheres.get(c).getValues().size()) { // check verfiica almeno un match
+								results.split(":0", -1).length-1 != condizione.getValues().size()) { // check verfiica almeno un match
 			    		    	String types[] = results.split(";");
 			    		    	for (String t:types) {
 			    		    		String values[] = t.split(":");
@@ -329,11 +327,11 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			    		    			val.put(values[0], values[1]);
 			    		    	}
 			    		    	// totalResult.put(val.keySet().toArray(), val.get(val.keySet().toArray()));
-								totalResult.put(meta.getColumnName(c), val);
+								totalResult.putAll(val);
 								// totalResult.putAll(val);
 
 								// costruzione struttura dati per confronto risultati
-								while(result_exp.next()) {
+								/* while(result_exp.next()) {
 									if(result_exp.getString(1).equals(meta.getColumnName(c))) {
 										val_exp.put(result_exp.getString(2), result_exp.getString(3));
 									}
@@ -343,30 +341,26 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 								result.setValuesExp(val_exp);
 								// confronto risultati
 								result.result_check();
-
+								*/
 							
 							} else {
 								totalResult.put("No matching values found", null);
 							}
-	    		    }
 
-	    		}
-				risultato.close();
-				result_exp.close();
+				// risultato.close();
+				// result_exp.close();
 				
 				// Object[] keys_arr = totalResult.keySet().toArray();
 			if(!(totalResult.isEmpty())) {
-				for(int i = 0; i < totalResult.keySet().size(); i++ ) {
-					ResultSet write_result = toolbox.executeQuery(connessione, "UPDATE "+db_schema+".CHECK_2 SET RESULT = '"+totalResult.get(totalResult.keySet().toArray()[i])+"' WHERE COLUMN_ID = '"+totalResult.keySet().toArray()[i]+"' AND DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"'");
-					write_result.close();
-				}
-				
-				} else { System.err.println("No value found in the table"); }
+				res.setValue(ByteBuffer.wrap(totalResult.toJSONString().getBytes(StandardCharsets.UTF_8)));
+				currentDate.setValue(LocalDateTime.now());
+				connessione.close();
+			} else { System.err.println("No value found in the table"); }
 				// HashMap<String, String> results_check_map = new HashMap<String, String>();
 				
-					res.setValue(ByteBuffer.wrap(totalResult.toJSONString().getBytes(StandardCharsets.UTF_8)));
-					// dovrebbe essere corretto l'ordine di inserimento, genericData è una mappa e res è il valore che corrisponde alla chiave result
-					// quindi avendo più righe per result effettivamente corrisponderà ad un array dei valori, e sarà ordinato per come è
+					// genericDataRow è una mappa e res è il valore che corrisponde alla chiave result
+					// in questa versione dell'algoritmo ci sono in check_2 con medesimo db_id e tb_id a differenza 
+					// di check(per il controllo in chiaro) effettivamente corrisponderà ad un array dei valori, e sarà ordinato per come è
 					// stato preso all'inizio
 					// rimane il problema della scrittura di tutte le coppie valori-occorrenze in tutte le righe delle colonna 
 					// result nella tabella, si può forzare una scrittura, come fatto sopra ma il metodomask ritorna un oggetto GenericData che andrà a
@@ -374,10 +368,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 					// in GenericData, suppondo il valore sia un array con i column_id, ma non saprei come iterare sui valori di column_id che 
 					// corrispondono a table e database
 					// in caso di scrittura forzata sarebbe
-					currentDate.setValue(LocalDateTime.now());
-					connessione.close();
-
-		}
+		
 		connection.close();
 		} catch (Exception e) {
         	StringWriter sw = new StringWriter();
@@ -396,6 +387,8 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
         maskedFields.put("DATABASE_ID", MaskingType.STRING);
 
         maskedFields.put("TABLE_ID", MaskingType.STRING);
+
+		maskedFields.put("COLUMN_ID", MaskingType.STRING);
         
         maskedFields.put("RESULT", MaskingType.BYTE_BUFFER);
         
