@@ -26,6 +26,7 @@ public class Toolbox {
 
 	public Connection prepareDBConnection(databaseType dbType, String hostname, String port, String instance,
 			String additionalParams, String username, String password) throws ClassNotFoundException, SQLException {
+		try {
 		Connection connection = null;
 		if (dbType == databaseType.ORACLE) {
 			Class.forName("oracle.jdbc.OracleDriver");
@@ -42,7 +43,11 @@ public class Toolbox {
 			connection = DriverManager.getConnection(dbURL, username, password);
 		}
 		return connection;
+	} catch(SQLException e) {
+		throw new SQLException(e.getSQLState() +" \n "+ e.getStackTrace() +" \n" + e.getMessage());
 	}
+	}
+
 
 	public ResultSet executeQuery(Connection conn, String query, int fetchSize) throws SQLException {
 		PreparedStatement preparedStatement = conn.prepareStatement(query);
@@ -54,7 +59,7 @@ public class Toolbox {
 	public ResultSet executeQuery(Connection conn, String query) throws SQLException {
 		PreparedStatement preparedStatement = conn.prepareStatement(query);
 		ResultSet rs = preparedStatement.executeQuery();
-		rs.setFetchSize(1000);
+		rs.setFetchSize(5000);
 		return rs;
 	}
 

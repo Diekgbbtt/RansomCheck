@@ -1,6 +1,6 @@
 Manifest-Version: 1.0
 Implementation-Version: 1.0
-Build-Timestamp: 2024-06-11T16:45:14.479+0200
+Build-Timestamp: 2024-06-12T11:01:47.645+0200
 Delphix-Algorithm-API-Version: 1.2.0
 Build-OS: Windows 11 amd64 10.0
 Delphix-Plugin-Name: ransomCheck

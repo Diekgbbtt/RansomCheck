@@ -19,6 +19,9 @@ public class WhereCondition {
 		// this.type = type;
 		this.values = values;
 	}
+	public WhereCondition() {
+		
+	}
 
 	public String getCol() {
 		return column;
@@ -52,7 +55,7 @@ public class WhereCondition {
 		String where = "";
 		for (String val : values) {
 			
-			where += " '"+val+":' || sum(case when(TRIM( UPPER("+this.getCol()+")) = '"+val.toUpperCase()+"'";
+			where += " '"+val+":' || sum(case when(TRIM(UPPER("+this.getCol()+")) = '"+val.toUpperCase()+"'";
 			where += ") then 1 else 0 end) ||';'||";
 		}
 		// where = where.substring(0,where.length() - 3);

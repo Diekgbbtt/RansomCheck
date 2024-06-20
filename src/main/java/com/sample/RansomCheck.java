@@ -50,9 +50,6 @@ import com.delphix.masking.api.provider.ComponentService;
 import com.delphix.masking.api.provider.LogService;
 
 import com.utilities.WhereCondition;
-import com.utilities.ResultValue;
-
-
 
 import javapasswordsdk.*;
 import javapasswordsdk.exceptions.*;
@@ -67,7 +64,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
         return true;
     }
 	
-	@JsonProperty("db_dbType")  	// ORACLE
+	@JsonProperty("db_dbType") // ORACLE
 	public String db_dbType;
 	@JsonProperty("db_hostname")
 	public String db_hostname;
@@ -87,7 +84,6 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	public String carkAppId;
 	@JsonProperty("CArk_Safe")
 	public String carkSafe;
-	// no valore ultime 4 entry
 
 	private LogService logger;
 	private Toolbox toolbox;
@@ -103,7 +99,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
  
 	@Override
 	public GenericDataRow mask(@Nullable GenericDataRow genericData) throws MaskingException {
-		// ArrayList<WhereCondition> wheres = new ArrayList<WhereCondition>();
+
 		try {
         	
         	// reading the column values
@@ -113,15 +109,14 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
     		GenericData res = genericData.get("RESULT");
     		GenericData currentDate = genericData.get("TIMESTAMP");
 
-    		// casting data to string
-			// quando vengono letti valori da un oggetto GenericData è encessaio castarlo
-			// ad un tipo core come string
     		String db = databaseId.getStringValue();
     		String table = tableId.getStringValue();
 			String col = columnId.getStringValue();
+			ArrayList<String> values_list = new ArrayList<String>();
+			WhereCondition condizione = new WhereCondition(values_list);
     		connection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType),db_hostname,db_port,db_instance,db_addParams,db_username,db_password );
-    		ResultSet rs = toolbox.executeQuery(connection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, LEGAL_ENTITY, OBJECT_NAME, USERNAME, PASSWORD FROM "+db_schema+".CHECK_VIEW WHERE DB_ID = " + db + " AND TABLE_ID = " + table + " AND COLUMN_ID = " + col);
-    		
+    		ResultSet rs = toolbox.executeQuery(connection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, USERNAME, PASSWORD FROM "+db_schema+".CHECK_VIEW_2 WHERE DB_ID = '" + db + "' AND TABLE_ID = '" + table + "' AND COLUMN_ID = '" + col +"'");
+
     		boolean check = false;
     		String tecnologia = "";
     		String host = "";
@@ -136,7 +131,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
     		String password = "";
     		
     		if(rs != null) {
-    			if(!check) {
+					while(rs.next()) {
     					tecnologia = rs.getString(1).split(" ")[0];
     		    		host = rs.getString(2);
     		    		port = rs.getString(3);
@@ -146,235 +141,86 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
     		    		columnName = rs.getString(7);
     		    		// legalEntity = rs.getString(9);
     		    		// objectName = rs.getString(10);
-    		    		username = rs.getString(11);
-    		    		password = rs.getString(12);
+    		    		username = rs.getString(8);
+    		    		password = rs.getString(9);
     		    		check = true;
+					}
     			}
-    		}
     		rs.close();
-			/* nella tablla checkview sono presenti tutte le tabelle, partizionate tra diversi db, da controllare 
-			 * per ogni tabella son indicate il nome delle colonne su più righe. Quindi si ripete il nome e id della
-			 * tabella. Nel costrutto sopra vengono salvati i dettagli per la connessione al db e le colonne della tabella
-			 * in oggetto. db id  e table id vengono passati come argomenti --> come li indico?
-			*/
-    		
-    		// if(check) {
-				// ResultSet checkCol_ids = toolbox.executeQuery(connection, "SELECT DISTINCT ID, COLUMN_ID  FROM "+db_schema+".CHECK_2 WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"'");
-	    		
-				// while(checkCol_ids.next()) {
-					// String ColumnName = columnsNameId.get(checkCol_ids.getString(2));
-					
-					ArrayList<String> values_list = new ArrayList<String>();
-					ResultSet values_rs = toolbox.executeQuery(connection, 
-											"SELECT DISTINCT VALUE FROM "+db_schema+".CHECK_BASE WHERE ID = ANY (SELECT DISTINCT ID_BASE FROM "+db_schema+".CHECK_LINK WHERE ID_CHECK = (SELECT DISTINCT ID FROM "+db_schema+".CHECK_2 WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"' AND COLUMN_ID = '"+col+"'))");
 
-						while(values_rs.next()) {
-							values_list.add(values_rs.getString(1));
-						}
-						WhereCondition condizione = new WhereCondition(values_list);
-						condizione.setCol(columnName);
-						// wheres.add(condizione);
-	
-					// values.close();
-
-				// checkCol_ids.close();
-				// abbiamo una wherecondition per ogni colonna della tabella interessata e ciscuna ha una lsita di valori da controllare
-				// per la relativa colonna.
-			
-	    		
-	    		/* if (nuovatabella != null) {	
-	    			while (nuovatabella.next()){
-	    				WhereCondition condizione = new WhereCondition(columns);
-	    				String tipo = nuovatabella.getString(1);
-	    				condizione.setType(tipo); // nome algoritmo
-	    				ResultSet values = toolbox.executeQuery(connection, "SELECT DISTINCT UPPER(VALUE) FROM "+db_schema+".CHECK_ALGO WHERE LEGAL_ENTITY = '" + legalEntity  + "' AND NAME = '" + tipo + "'");
-	    				// VALUE sono dei valori che devono essere ricercati, in seguito al mascheramento di una cella che ha tipo di dato
-						// pari a quello nella colonna NAME ci aspettiamo uno di questi valori
-						if(values != null) {
-	    					ArrayList<String> valori = new ArrayList<String>();
-	    					while (values.next()) {
-	    						valori.add(values.getString(1));
-	    					}
-	    					condizione.setValues(valori);
-	    					values.close();
-
-	    				}
-	    				wheres.add(condizione); 
-	    			}
-				*/
-
-					/* per ciascun tipo(NAME), entry nel rs nuovatabella, viene instanziata una 
-					 * WhereCondition con colonne prese da query precedente(COLUMN_NAME), colonne della tabella CHECK_VIEW
-					 * tipo preso da query successiva(NAME), dalla tabella CHECK_ALGO e valori dalla query finale
-					 * che vengono messi prima in una lista valori.
-					 * Abbiamo una whereCondition per tipo e vengono aggiunte alla lista wheres
-					 * Perchè non inizializzare anche values nella costruttore?
-					 * 
-
-	    			nuovatabella.close();
-	    		}
-			*/
-				
-
-				
-				// columnsNameId.forEach((k,v) -> {
-
-	    		// for(<Entry<String, String>> col: col_it) {
+		if(check) {
 				String checkQuery = "SELECT ";
-				if(condizione != null) {
-					 // inefficente, controlla le colonne anche per tutti i tipi di dati degli algortmi in check_algo
-														  // quindi anche tipi di dati che i valori nelle colonne non assumono
-					/* potrei fare un hashmap. Al posto della lista coloumns con i nomi di tutte le colonne, si crea un hashmap con nomecolonna->algoritmo 
-					*  che gestisce tipi di dati in quella colonna. Alla vista check_view deve essere aggiunta una colonna con il nome o i nomi degli algoritmi
-					* separta da virgola che gestiscono i tipi di dati in quella colonna, la query su checkview seleziona oltre al nome delle colonne anche i nomi degli algoritmi
-					* in un altra colonna. Viene creato quindi l'hashMap. In seguito nella costruzione della query checkquery viene aggiunta una condizione if nel for()
-					* che valuta se il tipo dell'oggetto where(nome algoritmo) è pari a uno degli algoritmi associati al nome della colonna nell'hashmap, true aggiunge
-					* porzione query, FALSE non aggiunge porzione query*/
-						
-	    				checkQuery += ""+condizione.getWhere()+"";
-						checkQuery = checkQuery.substring(0, checkQuery.length() - 7);
-						checkQuery += " AS "+col+"";
-	    			}
+				ResultSet values_rs = toolbox.executeQuery(connection, 
+											"SELECT DISTINCT VALUE FROM "+db_schema+".CHECK_BASE WHERE ID = ANY (SELECT DISTINCT ID_BASE FROM "+db_schema+".CHECK_LINK WHERE ID_CHECK = (SELECT DISTINCT ID FROM "+db_schema+".CHECK_2 WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"' AND COLUMN_ID = '"+col+"'))");
+			if(values_rs != null) {
+				while(values_rs.next()) {
+					values_list.add(values_rs.getString(1));
+				}
+				condizione.setValues(values_list);
+				condizione.setCol(columnName);
+				values_rs.close();
 
-				// });
-				// per ciascun valore checkQuery viene incrementata di una stringa *tipo*:'||*0-1*||';'||
-	    		// SELECT '*ALGO_1*:'*0/1*';'
-				// SELECT 'ALGO_1:'0';''ALGO_2:'1';'...COLOUMN_NAME,  - esempio
-				// questo per ciascuna colonna trovata(COLOUMN_NAME) IN CHECK_VIEW, per ciascuna tabella quando si ripete ciclo
-				// query finale : SELECT 'ALGO_1:'0/1';''ALGO_2:'0/1';'...COLOUMN_NAME,'ALGO_1:'0/1';''ALGO_2:'0/1';'...COLOUMN_NAME,.....
-	    		// checkQuery = checkQuery.substring(0, checkQuery.length() - 1); // deve toglier ultima virgola
-	    		
-	    		
-//		        CYBERARK INTEGRATION
-				// Create a trust manager that does not validate certificate chains
-//		        TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
-//		                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-//		                    return null;
-//		                }
-//		                public void checkClientTrusted(X509Certificate[] certs, String authType) {
-//		                }
-//		                public void checkServerTrusted(X509Certificate[] certs, String authType) {
-//		                }
-//		            }
-//		        };
-		 
-
-		        
-//		        // Install the all-trusting trust manager
-//		        SSLContext sc = SSLContext.getInstance("SSL");
-//		        sc.init(null, trustAllCerts, new java.security.SecureRandom());
-//		        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-//		 
-//		        // Create all-trusting host name verifier
-//		        HostnameVerifier allHostsValid = new HostnameVerifier() {
-//		            public boolean verify(String hostname, SSLSession session) {
-//		                return true;
-//		            }
-//		        };
-//		 
-//		        // Install the all-trusting host verifier
-//		        HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
-//		    	URL url = new URL("https://cyberarkccp.internal.unicreditgroup.eu/AIMWebService/api/Accounts?appid="+carkAppId+"&safe="+carkSafe+"&folder=Root&username="+username+"&object="+objectName+"&reason=CheckMasking");
-//		    	URLConnection con = url.openConnection();
-//				con.setRequestProperty("Content-Type", "application/json");
-//				con.setConnectTimeout(5000);
-//				con.setReadTimeout(5000);
-//				BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-//				String inputLine;
-//				StringBuffer content = new StringBuffer();
-//				while ((inputLine = in.readLine()) != null) {
-//				    content.append(inputLine);
-//				}
-//				in.close();
-//				JSONParser parser = new JSONParser();
-//				JSONObject json = (JSONObject) parser.parse(content.toString());
-//				String pwd = (String) json.get("Content");
+				checkQuery += condizione.getWhere();
+				checkQuery = checkQuery.substring(0, checkQuery.length() - 7);
+				checkQuery += " AS "+columnName+"";
+				}
+			
+			if(!checkQuery.equals(" AS "+columnName+"")) {
 				String additionalParams = null;
 				String pwd = password;
-	    		if(tecnologia.equals("DB2"))
+				if(tecnologia.equals("DB2")) {
 					additionalParams = ":securityMechanism=9;encryptionAlgorithm=2;defaultIsolationLevel=1;";
-	    		Connection connessione = toolbox.prepareDBConnection(databaseType.valueOf(tecnologia), host, port, sid_service, additionalParams, username, pwd);
-	    		
-	    		logger.info(checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
+				}
+				
+				Connection connessione = toolbox.prepareDBConnection(databaseType.valueOf(tecnologia), host, port, sid_service, additionalParams, username, pwd);
+				
+				logger.info(checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
+				
 				ResultSet risultato = toolbox.executeQuery(connessione, checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
-				// ResultSet result_exp = toolbox.executeQuery(connessione, "SELECT C.COLUMN_ID, B.VALUE, B.RES_ATTESO FROM "+db_schema+".CHECK_2 AS C JOIN "+db_schema+".CHECK_LINK AS L ON C.ID = L.ID_CHECK JOIN CHECK_BASE AS B ON L.ID_BASE = B.ID WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"'");
-				// 
-	    		JSONObject totalResult = new JSONObject();
-	    		// ResultSetMetaData meta = risultato.getMetaData();
-	    		// int colCount = meta.getColumnCount();
-				/* ArrayList<String> algos = condizione.getValues();
-				int ln = algos.size(); 
-	    		while(risultato.next())
-	    		{
-	    		    for (int c=1; c <= colCount; c++) 
-	    		    {
-				*/
-	    		    	HashMap<String, String> val = new HashMap<String, String>();
-						// HashMap<String, String> val_exp = new HashMap<String, String>();
-	    		    	String results = risultato.getString(1);
-						// Connection conn = toolbox.prepareDBConnection(databaseType.valueOf(tecnologia), host, port, sid_service, additionalParams, username, pwd);
-						/* ResultSet res_set = toolbox.executeQuery(conn, "SELECT COUNT(DISTINCT NAME) FROM "+db_schema+".CHECK_ALGO WHERE LEGAL_ENTITY = '" + legalEntity + "'");
-						res_set.next();
-						int alg_count = res_set.getInt(1);
-						conn.close(); */
-	    		    	if(results != null)
-		    		    	if(results.split(":;", -1).length-1 != 2 && // check verifica bug in scrittura (?)
-								results.split(":0", -1).length-1 != condizione.getValues().size()) { // check verfiica almeno un match
-			    		    	String types[] = results.split(";");
-			    		    	for (String t:types) {
-			    		    		String values[] = t.split(":");
-			    		    		if(!values[1].equals("0"))
-			    		    			val.put(values[0], values[1]);
-			    		    	}
-			    		    	// totalResult.put(val.keySet().toArray(), val.get(val.keySet().toArray()));
-								totalResult.putAll(val);
-								// totalResult.putAll(val);
 
-								// costruzione struttura dati per confronto risultati
-								/* while(result_exp.next()) {
-									if(result_exp.getString(1).equals(meta.getColumnName(c))) {
-										val_exp.put(result_exp.getString(2), result_exp.getString(3));
-									}
-								}
-								ResultValue result = new ResultValue(meta.getColumnName(c));
-								result.setValues(val);
-								result.setValuesExp(val_exp);
-								// confronto risultati
-								result.result_check();
-								*/
-							
-							} else {
-								totalResult.put("No matching values found", null);
+				JSONObject totalResult = new JSONObject();
+				HashMap<String, String> val = new HashMap<String, String>();
+
+				if(risultato != null) {
+					while(risultato.next()) {
+						String results = risultato.getString(1);
+						if(results.split(":;", -1).length-1 != 2 && // check verifica bug in scrittura (?)
+							results.split(":0", -1).length-1 != condizione.getValues().size()) { // check verfiica almeno un match
+							String types[] = results.split(";");
+							for (String t:types) {
+								String values[] = t.split(":");
+								if(!values[1].equals("0"))
+									val.put(values[0], values[1]);
 							}
+						}
+					}
+					totalResult.putAll(val);
+					risultato.close();
 
-				// risultato.close();
-				// result_exp.close();
+				} else {
+					totalResult.put("No matching values found", null);
+					}
+
+				if(!(totalResult.isEmpty())) {
+					res.setValue(ByteBuffer.wrap(totalResult.toJSONString().getBytes(StandardCharsets.UTF_8)));
+					currentDate.setValue(LocalDateTime.now());
+					connessione.close();
+				} else { System.err.println("No value found in the table"); }
+
+				connection.close();
+			} else {
+				System.out.println("No values found in with following parameters : \n db_id : " + db + "\n tb_id : " + table + " \n col_id : " + col + " ");
+			}
+
+		} else {
+				System.out.println("No column found in the view check_view_2 with following parameters : \n db_id : " + db + "\n tb_id : " + table + " \n col_id : " + col + " ");
+			}
 				
-				// Object[] keys_arr = totalResult.keySet().toArray();
-			if(!(totalResult.isEmpty())) {
-				res.setValue(ByteBuffer.wrap(totalResult.toJSONString().getBytes(StandardCharsets.UTF_8)));
-				currentDate.setValue(LocalDateTime.now());
-				connessione.close();
-			} else { System.err.println("No value found in the table"); }
-				// HashMap<String, String> results_check_map = new HashMap<String, String>();
-				
-					// genericDataRow è una mappa e res è il valore che corrisponde alla chiave result
-					// in questa versione dell'algoritmo ci sono in check_2 con medesimo db_id e tb_id a differenza 
-					// di check(per il controllo in chiaro) effettivamente corrisponderà ad un array dei valori, e sarà ordinato per come è
-					// stato preso all'inizio
-					// rimane il problema della scrittura di tutte le coppie valori-occorrenze in tutte le righe delle colonna 
-					// result nella tabella, si può forzare una scrittura, come fatto sopra ma il metodomask ritorna un oggetto GenericData che andrà a
-					// a sovrascrivere i valori al termine dell'algoritmo. Oppure valutare il valore che corrisponde alla chiave COLUMN_ID
-					// in GenericData, suppondo il valore sia un array con i column_id, ma non saprei come iterare sui valori di column_id che 
-					// corrispondono a table e database
-					// in caso di scrittura forzata sarebbe
-		
-		connection.close();
 		} catch (Exception e) {
         	StringWriter sw = new StringWriter();
         	e.printStackTrace(new PrintWriter(sw));
 			// logger.info(sw.toString());
-        	throw new MaskingException(sw.toString());
+        	throw new MaskingException(sw.toString() + " with following parameters : \n db_id : " + genericData.get("DATABASE_ID").getStringValue() + "\n tb_id : " + genericData.get("TABLE_ID").getStringValue() + " \n col_id : " + genericData.get("COLUMN_ID").getStringValue() + " \n\n With following values : \n  ");
         }
 		return genericData;
 	}
