@@ -50,40 +50,34 @@ public class WhereCondition {
 //	public void setColumn(String column) {
 //		this.column = column;
 //	}
+
+	public String getWhereBindvar() {
+		String where = "";
+		for (int i = 0; i < values.size(); i++) {
+			if(where.equals(""))
+				where += "SELECT ";
+			where += " '?' || sum(case when(TRIM(UPPER(?)) = '?' ) then 1 else 0 end) ||';'||";
+		}
+		if(!where.equals(""))
+			where = where.substring(0, where.length()-7);
+			where += " AS "+this.getCol()+"";
+	return where;
+
+
+	}
 	
 	public String getWhere() {
 		String where = "";
 		for (String val : values) {
-			
+			if(where.equals(""))
+				where += "SELECT ";
 			where += " '"+val+":' || sum(case when(TRIM(UPPER("+this.getCol()+")) = '"+val.toUpperCase()+"'";
 			where += ") then 1 else 0 end) ||';'||";
 		}
-		// where = where.substring(0,where.length() - 3);
+		if(!where.equals(""))
+			where = where.substring(0, where.length()-7);
+			where += " AS "+this.getCol()+"";
 		return where;
-
-		// LIKE keyword per cercare pattern in una colonna,
-		// in questo caso cerca nel nome della colonna(?) la stringa in val
-		// preceduta o seguita da qualsiasi altro carattere
-
-		// sum(case when( 
-		//		UPPER(" + col + ") LIKE '%" + val + "%' OR
-		//		UPPER(" + col + ") LIKE '%" + val + "%' OR
-		// 		....
-		//		..
-		//		.
-		//		) then 1 else 0 end)
-		//
-
-		/* non mi è chiara la stringa
-		* per ciascun valore in values(fetchato tramite query in RansomCheck) alla stringa where viene 
-		* aggiunta " UPPER(" + col + ") LIKE '%" + val + "%' OR" , quindi abbiamo un costrutto 
-		* switch case con un solo caso che riporta più possibli espressioni e che viene risolto ad una espressione
-		* in base al valore di col, se un confronto viene risolto con successo ritorna uno altrimenti zero
-		* "sum" è usata per avere solo il valore numerico(1 o 0). Non caspisco il sesno della keyword case
-		*
-		 */
-		
-//		return "WHERE UPPER(" + this.column + ") NOT LIKE '" + valore +"%'";
 	}
 
 	

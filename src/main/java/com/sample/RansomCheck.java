@@ -18,6 +18,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.PreparedStatement;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -115,9 +116,8 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			ArrayList<String> values_list = new ArrayList<String>();
 			WhereCondition condizione = new WhereCondition(values_list);
     		connection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType),db_hostname,db_port,db_instance,db_addParams,db_username,db_password );
-    		ResultSet rs = toolbox.executeQuery(connection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, USERNAME, PASSWORD FROM "+db_schema+".CHECK_VIEW_2 WHERE DB_ID = '" + db + "' AND TABLE_ID = '" + table + "' AND COLUMN_ID = '" + col +"'");
+    		ResultSet rs = toolbox.executeQuery(connection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, USERNAME, PASSWORD FROM ?.CHECK_VIEW_2 WHERE DB_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'", db_schema, db, table, col);
 
-    		boolean check = false;
     		String tecnologia = "";
     		String host = "";
     		String port = "";
@@ -125,47 +125,37 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
     		String schema = "";
     		String tableName = "";
     		String columnName = "";
-    		// String legalEntity = "";
-    		// String objectName = "";
     		String username = "";
     		String password = "";
     		
-    		if(rs != null) {
-					while(rs.next()) {
-    					tecnologia = rs.getString(1).split(" ")[0];
-    		    		host = rs.getString(2);
-    		    		port = rs.getString(3);
-    		    		sid_service = rs.getString(4);
-    		    		schema = rs.getString(5);
-    		    		tableName = rs.getString(6);
-    		    		columnName = rs.getString(7);
-    		    		// legalEntity = rs.getString(9);
-    		    		// objectName = rs.getString(10);
-    		    		username = rs.getString(8);
-    		    		password = rs.getString(9);
-    		    		check = true;
-					}
-    			}
-    		rs.close();
+		if(rs != null && rs.next()) {
+			tecnologia = rs.getString(1).split(" ")[0];
+			host = rs.getString(2);
+			port = rs.getString(3);
+			sid_service = rs.getString(4);
+			schema = rs.getString(5);
+			tableName = rs.getString(6);
+			columnName = rs.getString(7);
+			username = rs.getString(8);
+			password = rs.getString(9);
 
-		if(check) {
-				String checkQuery = "SELECT ";
-				ResultSet values_rs = toolbox.executeQuery(connection, 
-											"SELECT DISTINCT VALUE FROM "+db_schema+".CHECK_BASE WHERE ID = ANY (SELECT DISTINCT ID_BASE FROM "+db_schema+".CHECK_LINK WHERE ID_CHECK = (SELECT DISTINCT ID FROM "+db_schema+".CHECK_2 WHERE DATABASE_ID = '"+db+"' AND TABLE_ID = '"+table+"' AND COLUMN_ID = '"+col+"'))");
-			if(values_rs != null) {
+			rs.close();
+
+			String checkQuery = "";
+			ResultSet values_rs = toolbox.executeQuery(connection, 
+										"SELECT DISTINCT VALUE FROM ?.CHECK_BASE WHERE ID = ANY (SELECT DISTINCT ID_BASE FROM ?.CHECK_LINK WHERE ID_CHECK = (SELECT DISTINCT ID FROM ?.CHECK_2 WHERE DATABASE_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'))", db_schema, db_schema, db_schema, db, table, col);
+			if(values_rs != null) { // provare con != null && .next()
 				while(values_rs.next()) {
 					values_list.add(values_rs.getString(1));
 				}
 				condizione.setValues(values_list);
 				condizione.setCol(columnName);
 				values_rs.close();
-
+				
 				checkQuery += condizione.getWhere();
-				checkQuery = checkQuery.substring(0, checkQuery.length() - 7);
-				checkQuery += " AS "+columnName+"";
 				}
 			
-			if(!checkQuery.equals(" AS "+columnName+"")) {
+			if(!checkQuery.equals("")) {
 				String additionalParams = null;
 				String pwd = password;
 				if(tecnologia.equals("DB2")) {
@@ -175,8 +165,11 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 				Connection connessione = toolbox.prepareDBConnection(databaseType.valueOf(tecnologia), host, port, sid_service, additionalParams, username, pwd);
 				
 				logger.info(checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
-				
-				ResultSet risultato = toolbox.executeQuery(connessione, checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
+
+				checkQuery += " FROM ?.\"?\""; // schema tablename
+
+				PreparedStatement query = toolbox.prepareStatament(connessione, checkQuery, condizione, schema, tableName);
+				ResultSet risultato = query.executeQuery(); // toolbox.executeQuery(connessione, checkQuery + " FROM " + schema + ".\"" + tableName + "\"");
 
 				JSONObject totalResult = new JSONObject();
 				HashMap<String, String> val = new HashMap<String, String>();

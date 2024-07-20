@@ -63,6 +63,50 @@ public class Toolbox {
 		return rs;
 	}
 
+	public ResultSet executeQuery(Connection conn, String query, String... variables) throws SQLException {
+		PreparedStatement preparedStatement = prepareStatament(conn, query,variables);		//conn.prepareStatement(query);
+		ResultSet rs = preparedStatement.executeQuery();
+		rs.setFetchSize(5000);
+		return rs;
+	}
+
+	/* public ResultSet executeQuery(Connection conn, String query, WhereCondition condiziione) throws SQLException {
+		PreparedStatement preparedStatement = prepareStatament(conn, query,variables);		//conn.prepareStatement(query);
+		ResultSet rs = preparedStatement.executeQuery();
+		rs.setFetchSize(5000);
+		return rs;
+	}
+	*/
+
+	public PreparedStatement prepareStatament(Connection conn, String query, String... variables) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement(query);
+		if(variables == null)
+			throw new IllegalArgumentException("variables can't be empty");
+		for(int i = 1; i <= variables.length; i++) {
+			stmt.setString(i, variables[i]);
+		}
+		return stmt;
+	}
+
+	public PreparedStatement prepareStatament(Connection conn, String query, WhereCondition condizione, String db_schema, String tb_name) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement(query);
+		if(condizione.getValues().size() > 0 && condizione.getCol() != null)
+			throw new IllegalArgumentException("la colonna deve esistere e deve avere almeno un valore da cercare");
+		int j = 1;
+		for(int i = 1; i <= condizione.getValues().size(); i++) {
+			stmt.setString(j, condizione.getValues().get(i));
+			stmt.setString(++j, condizione.getCol());
+			stmt.setString(++j, condizione.getValues().get(i));
+		}
+		stmt.setString(++j, db_schema);
+		stmt.setString(++j, tb_name);
+		
+		return stmt;
+
+	}
+
+
+
 	public String getProperty(String propFile, String propToRead) throws IOException {
 		Properties prop = new Properties();
 		prop.load(getClass().getResourceAsStream(propFile));
