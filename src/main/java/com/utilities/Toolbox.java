@@ -105,8 +105,6 @@ public class Toolbox {
 
 	}
 
-
-
 	public String getProperty(String propFile, String propToRead) throws IOException {
 		Properties prop = new Properties();
 		prop.load(getClass().getResourceAsStream(propFile));

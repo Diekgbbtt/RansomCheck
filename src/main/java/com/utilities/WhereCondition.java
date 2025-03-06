@@ -62,8 +62,6 @@ public class WhereCondition {
 			where = where.substring(0, where.length()-7);
 			where += " AS "+this.getCol()+"";
 	return where;
-
-
 	}
 	
 	public String getWhere() {
