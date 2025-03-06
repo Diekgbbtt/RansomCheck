@@ -6,40 +6,24 @@ import com.utilities.Toolbox;
 import com.utilities.Toolbox.databaseType;
 import com.utilities.WhereCondition;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.cert.X509Certificate;
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.chrono.ThaiBuddhistChronology;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.naming.spi.DirStateFactory.Result;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
 import javapasswordsdk.*;
 import javapasswordsdk.exceptions.*;
@@ -52,7 +36,6 @@ import com.delphix.masking.api.plugin.utils.GenericDataRow;
 import com.delphix.masking.api.provider.ComponentService;
 import com.delphix.masking.api.provider.LogService;
 
-import jdk.internal.classfile.instruction.ThrowInstruction;
 
 
 public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
@@ -224,21 +207,14 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	
 	@Override
 	public Map<String, MaskingType> listMaskedFields() {
-
         Map<String, MaskingType> maskedFields = new HashMap<String, MaskingType> ();
-
         maskedFields.put("DATABASE_ID", MaskingType.STRING);
-
         maskedFields.put("TABLE_ID", MaskingType.STRING);
-
 		maskedFields.put("COLUMN_ID", MaskingType.STRING);
-        
         maskedFields.put("RESULT", MaskingType.BYTE_BUFFER);
-        
         maskedFields.put("TIMESTAMP", MaskingType.LOCAL_DATE_TIME);
-
+		
         return maskedFields;
-
     }
 	
 	@Override
