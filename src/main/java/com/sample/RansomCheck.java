@@ -80,7 +80,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
     public void setup(@Nonnull ComponentService serviceProvider)  {
 		this.logger = serviceProvider.getLogService();
 		this.toolbox = new Toolbox();
-		this.condition = new WhereCondition(values_list);
+		this.condition = new WhereCondition();
 		this.values_list = new ArrayList<String>();
 		this.checkQuery = "";
 		this.valuesClustersResultSet = null;
