@@ -44,7 +44,7 @@ public class Toolbox {
 		}
 		return connection;
 	} catch(SQLException e) {
-		throw new SQLException(e.getSQLState() +" \n "+ e.getStackTrace() +" \n" + e.getMessage());
+		throw new SQLException(e.getSQLState() +" \n" + e.getMessage());
 	}
 	}
 
@@ -64,7 +64,7 @@ public class Toolbox {
 	}
 
 	public ResultSet executeQuery(Connection conn, String query, String... variables) throws SQLException {
-		PreparedStatement preparedStatement = prepareStatament(conn, query,variables);		//conn.prepareStatement(query);
+		PreparedStatement preparedStatement = prepareStatament(conn, query, variables);		//conn.prepareStatement(query);
 		ResultSet rs = preparedStatement.executeQuery();
 		rs.setFetchSize(5000);
 		return rs;
@@ -77,7 +77,7 @@ public class Toolbox {
 		return rs;
 	}
 	*/
-
+	// base current scenario, table schema and name passed
 	public PreparedStatement prepareStatament(Connection conn, String query, String... variables) throws SQLException {
 		PreparedStatement stmt = conn.prepareStatement(query);
 		if(variables == null)
@@ -87,10 +87,10 @@ public class Toolbox {
 		}
 		return stmt;
 	}
-
+	// stmt preparation for scenario with whereCondition presenting bindVariables, not used atm
 	public PreparedStatement prepareStatament(Connection conn, String query, WhereCondition condizione, String db_schema, String tb_name) throws SQLException {
 		PreparedStatement stmt = conn.prepareStatement(query);
-		if(condizione.getValues().size() > 0 && condizione.getCol() != null)
+		if(!condizione.getValues().isEmpty() && condizione.getCol() != null)
 			throw new IllegalArgumentException("la colonna deve esistere e deve avere almeno un valore da cercare");
 		int j = 1;
 		for(int i = 1; i <= condizione.getValues().size(); i++) {
@@ -102,7 +102,6 @@ public class Toolbox {
 		stmt.setString(++j, tb_name);
 		
 		return stmt;
-
 	}
 
 	public String getProperty(String propFile, String propToRead) throws IOException {

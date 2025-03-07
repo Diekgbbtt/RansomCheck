@@ -5,6 +5,7 @@ import com.utilities.TableDetails;
 import com.utilities.Toolbox;
 import com.utilities.Toolbox.databaseType;
 import com.utilities.WhereCondition;
+import com.utilities.InvalidIndexParametersException;
 
 
 import java.io.PrintWriter;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.lang.IllegalArgumentException;
 import java.sql.PreparedStatement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -89,7 +91,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	
 	// object to hold resutls table details
 	private void getResultRowData(GenericDataRow genericData) {
-		this.resultRowData = new TableDetails(
+		this.resultRowData.setDetails(
 			genericData.get("DATABASE_ID").getStringValue(),
 			genericData.get("TABLE_ID").getStringValue(),
 			genericData.get("COLUMN_ID").getStringValue(),
@@ -99,25 +101,33 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	}
 	
 	// object to hold target table details, including all parameters required to connect to the target table
-	private void getTargetTableData() throws SQLException, ClassNotFoundException {
-		this.containerConnection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType),db_hostname,db_port,db_instance,db_addParams,db_username,db_password );
-		ResultSet rs = toolbox.executeQuery(this.containerConnection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, USERNAME, PASSWORD FROM ?.CHECK_VIEW_2 WHERE DB_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'", db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
-		if(rs != null && rs.next()) {
-			this.targetTableData = TableDetails(
-			rs.getString(1).split(" ")[0],
-			rs.getString(2),
-			rs.getString(3),
-			rs.getString(4),
-			rs.getString(5),
-			rs.getString(6),
-			rs.getString(7),
-			rs.getString(8),
-			rs.getString(9)
-			); rs.close();
-		} else { logger.info("No table found in the general database view with following parameters : \n db_id : " + resultRowData.getDb() + "\n tb_id : " + resultRowData.getTable() + " \n col_id : " + resultRowData.getCol()); }
+	private void getTargetTableData() throws SQLException, ClassNotFoundException, IllegalArgumentException, InvalidIndexParametersException{
+		try{
+			this.containerConnection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType),db_hostname,db_port,db_instance,db_addParams,db_username,db_password );
+			ResultSet rs = toolbox.executeQuery(this.containerConnection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, USERNAME, PASSWORD FROM ?.CHECK_VIEW_2 WHERE DB_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'", db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
+			if(rs != null && rs.next()) {
+				this.targetTableData.setDetails(
+				rs.getString(1).split(" ")[0],
+				rs.getString(2),
+				rs.getString(3),
+				rs.getString(4),
+				rs.getString(5),
+				rs.getString(6),
+				rs.getString(7),
+				rs.getString(8),
+				rs.getString(9)
+				); 
+				rs.close();
+			} else { 
+				this.logger.info("No table/column found in the general database view with these parameters\n db_id : " + resultRowData.getDb() + "\n tb_id : "+ resultRowData.getTable() +"\n col_id : "+ resultRowData.getCol());
+				throw new InvalidIndexParametersException("No table/column found in the general database view with these parameters", resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol()); 
+			}
+		} catch(SQLException e){
+				throw new SQLException(e.getMessage() + "\n Error connecting to or querying the general database view");
+		}
 	}
 	// get exepected values for the current checked column by the masking algorithm
-	private void getColumnExpectedValues() throws SQLException, ClassNotFoundException {
+	private void getColumnExpectedValues() throws SQLException, ClassNotFoundException, InvalidIndexParametersException{
 		ResultSet values_rs = toolbox.executeQuery(this.containerConnection, 
 								"SELECT DISTINCT VALUE FROM ?.CHECK_BASE WHERE ID_CHECK = (SELECT DISTINCT ID FROM ?.CHECK_2 WHERE DATABASE_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'))", db_schema, db_schema, db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
 		if(values_rs != null) { 
@@ -126,15 +136,20 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			}
 			values_rs.close();
 			this.containerConnection.close();
-		} else { logger.info("No expected values found in expected values table(CHECK_BASE) with the following parameters : \n db_id : " + resultRowData.getDb() + "\n tb_id : " + resultRowData.getTable() + " \n col_id : " + resultRowData.getCol()); }
-
+		} else {
+			this.logger.info("No expected values found in expected values table(CHECK_BASE) with these parameters\n db_id : " + resultRowData.getDb() + "\n tb_id : "+ resultRowData.getTable() +"\n col_id : "+ resultRowData.getCol());
+			throw new InvalidIndexParametersException("No expected values found in expected values table(CHECK_BASE) with these parameters", resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol()); 
+		}
 	}
 
 	// buld the fundamental dynamic part of the final query, the confront between expected and effective values inserted dinamically 
-	private void buildClusteringQuery() throws SQLException, ClassNotFoundException {
+	private void buildClusteringQuery() throws SQLException, ClassNotFoundException, InvalidIndexParametersException {
 		if(values_list.size() > 1) { // redundant values list retrieve for safety
 			condition.setValues(values_list);
-		} else { logger.info("No expected values found in expected values table(CHECK_BASE) with the following parameters : \n db_id : " + resultRowData.getDb() + "\n tb_id : " + resultRowData.getTable() + " \n col_id : " + resultRowData.getCol() + ", before building the where condition, raise problem to support"); }
+		} else { 
+			this.logger.info("No expected values found in expected values table(CHECK_BASE) with the following parameters \n db_id : " + resultRowData.getDb() + "\n tb_id : "+ resultRowData.getTable() +"\n col_id : "+ resultRowData.getCol());
+			throw new InvalidIndexParametersException("No expected values found in expected values table(CHECK_BASE) with the following parameters", resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol()); 
+		}
 		condition.setCol(targetTableData.getCol());
 		checkQuery += condition.getWhere();
 	}
@@ -146,8 +161,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			this.targetTableConnection = toolbox.prepareDBConnection(databaseType.valueOf(targetTableData.getTech()), targetTableData.getHost(), targetTableData.getPort(), targetTableData.getSid(), db_addParams, targetTableData.getUsr(), targetTableData.getPwd());
 			this.logger.info(checkQuery + " FROM " + targetTableData.getSchema() + ".\"" + targetTableData.getTable() + "\""); // log query for debugging
 			this.checkQuery += " FROM ?.\"?\""; // schema and tablename added later
-			PreparedStatement query = toolbox.prepareStatament(this.targetTableConnection, checkQuery, condition, targetTableData.getSchema(), targetTableData.getTable());
-			this.valuesClustersResultSet = query.executeQuery();
+			this.valuesClustersResultSet = toolbox.executeQuery(this.targetTableConnection, checkQuery, targetTableData.getSchema(), targetTableData.getTable());
 	}
 
 	private void parseEffectiveValues() throws Exception {
@@ -185,9 +199,10 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			this.resultRowData.getResult().setValue(ByteBuffer.wrap(errorMessage.getBytes(StandardCharsets.UTF_8)));
 		}
 		this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
-		this.targetTableConnection.close(); // close connection to target table
+		if (!this.targetTableConnection.isClosed()) {
+			this.targetTableConnection.close();
+		}
 	}
-
 	@Override
 	public GenericDataRow mask(@Nullable GenericDataRow genericData) throws MaskingException {
 		try {
@@ -198,13 +213,20 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			extractColumnEffectiveValuesClusters();
 			parseEffectiveValues();
 		} catch (Exception e) {
-        	StringWriter sw = new StringWriter();
-        	e.printStackTrace(new PrintWriter(sw));
-        	throw new MaskingException(sw.toString() + " with following parameters : \n db_id : " + resultRowData.getDb() + "\n tb_id : " + resultRowData.getTable() + " \n col_id : " + resultRowData.getCol() + " \n\n With following values : \n " + String.join(",  ", values_list));
-        }
+			if (e instanceof InvalidIndexParametersException) {
+			 	writeEffectiveValues(Optional.of(((InvalidIndexParametersException) e).printMessageWithIndexes()));
+				return genericData;
+			} else if(e instanceof IllegalArgumentException) {
+				writeEffectiveValues(Optional.of(((IllegalArgumentException) e).getMessage()));
+				return genericData;
+			} else {
+				StringWriter sw = new StringWriter();
+				e.printStackTrace(new PrintWriter(sw));
+				throw new MaskingException(sw.toString() +  "\n Exception message : \n" + e.getMessage() + " \n With following parameters : \n db_id : " + resultRowData.getDb() + "\n tb_id : " + resultRowData.getTable() + " \n col_id : " + resultRowData.getCol() + " \n\n With following values : \n " + String.join(",  ", values_list));
+			}
+		}
 		return genericData;
-	}
-	
+	}	
 	@Override
 	public Map<String, MaskingType> listMaskedFields() {
         Map<String, MaskingType> maskedFields = new HashMap<String, MaskingType> ();
