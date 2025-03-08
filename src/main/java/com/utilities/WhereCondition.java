@@ -4,36 +4,23 @@ import java.util.ArrayList;
 
 public class WhereCondition {
 
-
-	// private String type;
 	private ArrayList<String> values;
 	private String column;
-	private String colId;
 	
 	public WhereCondition(ArrayList<String> values) {
 		this.values = values;
 	}
 		
-	public WhereCondition(String type, ArrayList<String> values, String column) {
+	public WhereCondition(ArrayList<String> values, String column) {
 		super();
-		// this.type = type;
 		this.values = values;
+		this.column = column;
 	}
-	public WhereCondition() {
-		
-	}
-
 	public String getCol() {
 		return column;
 	}
 	public void setCol(String col) {
 		this.column = col;
-	}
-	public String getColId() {
-		return colId;
-	}
-	public void setColId(String col_id) {
-		this.colId = col_id;
 	}
 	public ArrayList<String> getValues() {
 		return values;
@@ -44,12 +31,6 @@ public class WhereCondition {
 	public void setValues(ArrayList<String> value) {
 		this.values = value;
 	}
-//	public String getColumn() {
-//		return column;
-//	}
-//	public void setColumn(String column) {
-//		this.column = column;
-//	}
 
 	public String getWhereBindvar() {
 		String where = "";
@@ -69,7 +50,7 @@ public class WhereCondition {
 		for (String val : values) {
 			if(where.equals(""))
 				where += "SELECT ";
-			where += " '"+val+":' || sum(case when(TRIM(UPPER("+this.getCol()+")) = '"+val.toUpperCase()+"'";
+			where += " '"+val+":' || sum(case when(TRIM(UPPER("+this.getCol()+")) = '"+val.toUpperCase().trim()+"'";
 			where += ") then 1 else 0 end) ||';'||";
 		}
 		if(!where.equals(""))

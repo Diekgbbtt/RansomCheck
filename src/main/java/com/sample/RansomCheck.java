@@ -7,7 +7,6 @@ import com.utilities.Toolbox.databaseType;
 import com.utilities.WhereCondition;
 import com.utilities.InvalidIndexParametersException;
 
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
@@ -20,7 +19,8 @@ import java.sql.PreparedStatement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Optional;
+import java.util.Map;
+
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,13 +47,13 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
         return true;
     }
 	
-	@JsonProperty("db_dbType") // ORACLE
+	@JsonProperty("db_dbType")
 	public String db_dbType;
 	@JsonProperty("db_hostname")
 	public String db_hostname;
 	@JsonProperty("db_port")
 	public String db_port;
-	@JsonProperty("db_username") // DELPHIXDEV
+	@JsonProperty("db_username")
 	public String db_username;
 	@JsonProperty("db_schema")
 	public String db_schema;
@@ -82,7 +82,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
     public void setup(@Nonnull ComponentService serviceProvider)  {
 		this.logger = serviceProvider.getLogService();
 		this.toolbox = new Toolbox();
-		this.condition = new WhereCondition();
+		this.condition = null;
 		this.values_list = new ArrayList<String>();
 		this.checkQuery = "";
 		this.valuesClustersResultSet = null;
@@ -135,7 +135,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 				values_list.add(values_rs.getString(1));
 			}
 			values_rs.close();
-			this.containerConnection.close();
+			toolbox.closeConnection(this.containerConnection);
 		} else {
 			this.logger.info("No expected values found in expected values table(CHECK_BASE) with these parameters\n db_id : " + resultRowData.getDb() + "\n tb_id : "+ resultRowData.getTable() +"\n col_id : "+ resultRowData.getCol());
 			throw new InvalidIndexParametersException("No expected values found in expected values table(CHECK_BASE) with these parameters", resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol()); 
@@ -164,9 +164,8 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			this.valuesClustersResultSet = toolbox.executeQuery(this.targetTableConnection, checkQuery, targetTableData.getSchema(), targetTableData.getTable());
 	}
 
-	private void parseEffectiveValues() throws Exception {
-
-		HashMap<String, String> values = new HashMap<String, String>();
+	private void parseEffectiveValues() throws SQLException {
+		HashMap<String, String> values = new HashMap<>();
 		if(this.valuesClustersResultSet != null) {
 			while(this.valuesClustersResultSet.next()) {
 				if(this.valuesClustersResultSet.getString(1).split(":;", -1).length-1 != 2 && // check verifica bug in scrittura (?)
@@ -176,33 +175,36 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 						values.put(t.split(":")[0], t.split(":")[1]);
 					}
 				} else {
+					this.valuesClustersResultSet.close();
+					toolbox.closeConnection(this.targetTableConnection);
 					this.logger.info("neither one match found or ':;' bug occurred in results writing, raise problem to support");
-					writeEffectiveValues(Optional.of("neither one match found or ':;' bug occurred in results writing, raise problem to support"));
+					writeEffectiveValues("neither one match found or ':;' bug occurred in results writing, raise problem to support");
 				}
 			}
 			retrievedValuesClusters.putAll(values);
 			this.valuesClustersResultSet.close();
-			writeEffectiveValues(Optional.empty());
+			toolbox.closeConnection(this.targetTableConnection);
+			writeEffectiveValues();
 
 		} else {
+			this.valuesClustersResultSet.close();
 			this.logger.info("error in query to retrieve effective values execution");
-			writeEffectiveValues(Optional.of("error in query to retrieve effective values execution"));
+			writeEffectiveValues("error in query to retrieve effective values execution");
 		}
-
 	}
 
-	private void writeEffectiveValues(Optional<String> errorString) throws Exception {
-		if(!(retrievedValuesClusters.isEmpty())) { // if 
+	// write good scenario, results are written 
+	private void writeEffectiveValues() {
 			this.resultRowData.getResult().setValue(ByteBuffer.wrap(retrievedValuesClusters.toJSONString().getBytes(StandardCharsets.UTF_8)));
-		} else {
-			String errorMessage = errorString.orElse("undefined error");
-			this.resultRowData.getResult().setValue(ByteBuffer.wrap(errorMessage.getBytes(StandardCharsets.UTF_8)));
-		}
-		this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
-		if (!this.targetTableConnection.isClosed()) {
-			this.targetTableConnection.close();
-		}
+			this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
 	}
+
+	// faulty scenario, desciption of the error is written
+	private void writeEffectiveValues(String errorString) {
+			this.resultRowData.getResult().setValue(ByteBuffer.wrap(errorString.getBytes(StandardCharsets.UTF_8)));
+			this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
+	}
+
 	@Override
 	public GenericDataRow mask(@Nullable GenericDataRow genericData) throws MaskingException {
 		try {
@@ -214,10 +216,10 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			parseEffectiveValues();
 		} catch (Exception e) {
 			if (e instanceof InvalidIndexParametersException) {
-			 	writeEffectiveValues(Optional.of(((InvalidIndexParametersException) e).printMessageWithIndexes()));
+			 	writeEffectiveValues(((InvalidIndexParametersException) e).printMessageWithIndexes());
 				return genericData;
 			} else if(e instanceof IllegalArgumentException) {
-				writeEffectiveValues(Optional.of(((IllegalArgumentException) e).getMessage()));
+				writeEffectiveValues(((IllegalArgumentException) e).getMessage());
 				return genericData;
 			} else {
 				StringWriter sw = new StringWriter();
@@ -226,7 +228,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			}
 		}
 		return genericData;
-	}	
+	}
 	@Override
 	public Map<String, MaskingType> listMaskedFields() {
         Map<String, MaskingType> maskedFields = new HashMap<String, MaskingType> ();
