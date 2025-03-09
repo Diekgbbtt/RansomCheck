@@ -27,25 +27,25 @@ public class Toolbox {
 	public Connection prepareDBConnection(databaseType dbType, String hostname, String port, String instance,
 			String additionalParams, String username, String password) throws ClassNotFoundException, SQLException {
 		try {
-		Connection connection = null;
-		if (dbType == databaseType.ORACLE) {
-			Class.forName("oracle.jdbc.OracleDriver");
-			String dbURL = new String("jdbc:oracle:thin:@" + hostname + ":" + port + "/" + instance);
-			connection = DriverManager.getConnection(dbURL, username, password);
-		} else if (dbType == databaseType.DB2) {
-			Class.forName("com.ibm.db2.jcc.DB2Driver");
-			String dbURL = new String("jdbc:db2://" + hostname + ":" + port + "/" + instance + additionalParams);
-			connection = DriverManager.getConnection(dbURL, username, password);
+			Connection connection = null;
+			if (dbType == databaseType.ORACLE) {
+				Class.forName("oracle.jdbc.OracleDriver");
+				String dbURL = new String("jdbc:oracle:thin:@" + hostname + ":" + port + "/" + instance);
+				connection = DriverManager.getConnection(dbURL, username, password);
+			} else if (dbType == databaseType.DB2) {
+				Class.forName("com.ibm.db2.jcc.DB2Driver");
+				String dbURL = new String("jdbc:db2://" + hostname + ":" + port + "/" + instance + additionalParams);
+				connection = DriverManager.getConnection(dbURL, username, password);
+			}
+			else if (dbType == databaseType.POSTGRES) {
+				Class.forName("org.postgresql.Driver");
+				String dbURL = new String("jdbc:postgresql://" + hostname + ":" + port + "/" + instance + additionalParams);
+				connection = DriverManager.getConnection(dbURL, username, password);
+			}
+			return connection;
+		} catch(SQLException e) {
+			throw new SQLException(e.getSQLState() +" \n" + e.getMessage());
 		}
-		else if (dbType == databaseType.POSTGRES) {
-			Class.forName("org.postgresql.Driver");
-			String dbURL = new String("jdbc:postgresql://" + hostname + ":" + port + "/" + instance + additionalParams);
-			connection = DriverManager.getConnection(dbURL, username, password);
-		}
-		return connection;
-	} catch(SQLException e) {
-		throw new SQLException(e.getSQLState() +" \n" + e.getMessage());
-	}
 	}
 
 
@@ -102,6 +102,12 @@ public class Toolbox {
 		stmt.setString(++j, tb_name);
 		
 		return stmt;
+	}
+
+	public void closeConnection(Connection conn) throws SQLException {
+		if (!conn.isClosed()) {
+			conn.close();
+		}
 	}
 
 	public String getProperty(String propFile, String propToRead) throws IOException {
