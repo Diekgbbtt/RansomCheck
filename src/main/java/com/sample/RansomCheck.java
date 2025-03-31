@@ -104,18 +104,13 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	public void getTargetTableData() throws SQLException, ClassNotFoundException, IllegalArgumentException, InvalidIndexParametersException{
 		try{
 			this.containerConnection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType),db_hostname,db_port,db_instance,db_addParams,db_username,db_password );
-			ResultSet rs = toolbox.executeQuery(this.containerConnection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, USERNAME, PASSWORD FROM ?.CHECK_VIEW_2 WHERE DB_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'", db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
+			ResultSet rs = toolbox.executeQuery(this.containerConnection, "SELECT DB_NAME, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM ?.CHECK_VIEW_2 WHERE DB_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'", db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
 			if(rs != null && rs.next()) {
 				this.targetTableData.setDetails(
-				rs.getString(1).split(" ")[0],
+				rs.getString(1),
 				rs.getString(2),
 				rs.getString(3),
-				rs.getString(4),
-				rs.getString(5),
-				rs.getString(6),
-				rs.getString(7),
-				rs.getString(8),
-				rs.getString(9)
+				rs.getString(4)
 				); 
 				rs.close();
 			} else { 
@@ -155,10 +150,10 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	}
 
 	public void extractColumnEffectiveValuesClusters() throws ClassNotFoundException, SQLException {
-			if(targetTableData.getTech().equals("DB2")) {
+			if(db_dbType.equals("DB2")) {
 				db_addParams = ":securityMechanism=9;encryptionAlgorithm=2;defaultIsolationLevel=1;";
 			}
-			this.targetTableConnection = toolbox.prepareDBConnection(databaseType.valueOf(targetTableData.getTech()), targetTableData.getHost(), targetTableData.getPort(), targetTableData.getSid(), db_addParams, targetTableData.getUsr(), targetTableData.getPwd());
+			this.targetTableConnection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType), db_hostname, db_port, targetTableData.getSid(), db_addParams, db_username, db_password);
 			this.logger.info(checkQuery + " FROM " + targetTableData.getSchema() + ".\"" + targetTableData.getTable() + "\""); // log query for debugging
 			this.checkQuery += " FROM ?.\"?\""; // schema and tablename added later
 			this.valuesClustersResultSet = toolbox.executeQuery(this.targetTableConnection, checkQuery, targetTableData.getSchema(), targetTableData.getTable());
