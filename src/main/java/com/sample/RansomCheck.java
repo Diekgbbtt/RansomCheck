@@ -1,15 +1,5 @@
 package com.sample;
 
-<<<<<<< HEAD
-=======
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.utilities.TableDetails;
-import com.utilities.Toolbox;
-import com.utilities.Toolbox.databaseType;
-import com.utilities.WhereCondition;
-import com.utilities.InvalidIndexParametersException;
-
->>>>>>> @{-1}
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
@@ -21,10 +11,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-<<<<<<< HEAD
-=======
-
->>>>>>> @{-1}
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -88,11 +74,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 		this.logger = serviceProvider.getLogService();
 		this.toolbox = new Toolbox();
 		this.condition = null;
-<<<<<<< HEAD
 		this.values_list = new ArrayList<>();
-=======
-		this.values_list = new ArrayList<String>();
->>>>>>> @{-1}
 		this.checkQuery = "";
 		this.valuesClustersResultSet = null;
 		this.retrievedValuesClusters = new JSONObject();
@@ -168,12 +150,8 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 			this.valuesClustersResultSet = toolbox.executeQuery(this.targetTableConnection, checkQuery, targetTableData.getSchema(), targetTableData.getTable());
 	}
 
-<<<<<<< HEAD
 	@SuppressWarnings("unchecked")
 	private void parseEffectiveValues() throws SQLException {
-=======
-	public void parseEffectiveValues() throws SQLException {
->>>>>>> @{-1}
 		HashMap<String, String> values = new HashMap<>();
 		if(this.valuesClustersResultSet != null) {
 			while(this.valuesClustersResultSet.next()) {
@@ -203,21 +181,13 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	}
 
 	// write good scenario, results are written 
-<<<<<<< HEAD
 	private void writeEffectiveValues() {
-=======
-	public void writeEffectiveValues() {
->>>>>>> @{-1}
 			this.resultRowData.getResult().setValue(ByteBuffer.wrap(retrievedValuesClusters.toJSONString().getBytes(StandardCharsets.UTF_8)));
 			this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
 	}
 
 	// faulty scenario, desciption of the error is written
-<<<<<<< HEAD
 	private void writeEffectiveValues(String errorString) {
-=======
-	public void writeEffectiveValues(String errorString) {
->>>>>>> @{-1}
 			this.resultRowData.getResult().setValue(ByteBuffer.wrap(errorString.getBytes(StandardCharsets.UTF_8)));
 			this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
 	}
@@ -262,10 +232,6 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	public String getName() {
 		return "RansomCheck";
 	}
-<<<<<<< HEAD
 
 
 }
-=======
-}
->>>>>>> @{-1}
