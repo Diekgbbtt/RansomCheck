@@ -3,22 +3,26 @@
 */
 buildscript {
     repositories {
-        jcenter()
+        mavenCentral()
         mavenLocal()
     }
     dependencies {
         classpath files("${project.rootDir}/libs/masking-algorithm-api-${maskingAlgoVer}.jar")
         classpath files("${project.rootDir}/libs/semantic-version-${semanticVer}.jar")
         classpath files("${project.rootDir}/libs/javapasswordsdk.jar")
+        classpath files("${project.rootDir}/libs/junit-jupiter-api-5.12.0.jar")
+        classpath files("${project.rootDir}/libs/junit-jupiter-engine-5.12.0.jar")
+        classpath files("${project.rootDir}/libs/mockito-core-5.16.0.jar")
     }
 }
 
 apply plugin: 'java'
 
 repositories {
-    jcenter()
+    mavenCentral()
     mavenLocal()
 }
+
 
 jar {
     from {
@@ -36,8 +40,28 @@ jar {
     }
 }
 
+sourceCompatibility = '17'
+
 dependencies {
     compileOnly fileTree(dir: "${project.rootDir}/libs", include: '*.jar')
     implementation files("${project.rootDir}/libs/javapasswordsdk.jar")
+<<<<<<< HEAD
     compileOnly ('com.fasterxml.jackson.core:jackson-annotations:' + jacksonVer)
+=======
+    testImplementation files("${project.rootDir}/libs/masking-algorithm-api-${maskingAlgoVer}.jar")
+    testImplementation files("${project.rootDir}/libs/junit-jupiter-api-5.12.0.jar")
+    testImplementation files("${project.rootDir}/libs/mockito-core-5.16.0.jar")
+    testImplementation files("${project.rootDir}/libs/junit-jupiter-engine-5.12.0.jar")
+    testRuntimeOnly files("${project.rootDir}/libs/masking-algorithm-api-${maskingAlgoVer}.jar")
+    testRuntimeOnly files("${project.rootDir}/libs/junit-jupiter-api-5.12.0.jar")
+    testRuntimeOnly files("${project.rootDir}/libs/mockito-core-5.16.0.jar")
+    testRuntimeOnly files("${project.rootDir}/libs/junit-jupiter-engine-5.12.0.jar")
+    testImplementation 'org.junit.platform:junit-platform-launcher:1.12.0'
+    testImplementation 'net.bytebuddy:byte-buddy-agent:1.17.2'
+>>>>>>> @{-1}
+}
+
+
+tasks.test {
+    useJUnitPlatform()  // Explicitly tell Gradle to use JUnit 5
 }

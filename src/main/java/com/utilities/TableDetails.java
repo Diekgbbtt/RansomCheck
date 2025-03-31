@@ -15,13 +15,8 @@ public class TableDetails{
     private GenericData result;
     private GenericData timestamp;
     // data required to connect to table where reside column to extract values from
-    private String technology;
-    private String host;
-    private String port;
     private String sid;
     private String schema;
-    private String username;
-    private String password;
 
     private ArrayList<String> null_values;
     // builder for results table details
@@ -34,16 +29,11 @@ public class TableDetails{
         checkNullValues();
     }
 
-    public void setDetails(String technology, String host, String port, String sid_service, String schema, String table, String col, String username, String password) throws IllegalArgumentException {
-        this.technology = technology==null ? addNullValue("technology") : technology;
-        this.host = host==null ? addNullValue("host") : host;
-        this.port = port==null ? addNullValue("port") : port;
+    public void setDetails(String sid_service, String schema, String table, String col) throws IllegalArgumentException {
         this.sid = sid==null ? addNullValue("sid") : sid;
         this.schema = schema==null ? addNullValue("schema") : schema;
         this.table = table==null ? addNullValue("table") : table;
         this.col = col==null ? addNullValue("col") : col;
-        this.username = username==null ? addNullValue("username") : username;
-        this.password = password==null ? addNullValue("password") : password;
         checkNullValues();
     }
 
@@ -66,12 +56,7 @@ public class TableDetails{
     public String getCol() { return col; }
     public GenericData getResult() { return result; }
     public GenericData getTimestamp() { return timestamp; }
-    public String getTech() { return technology; }
-    public String getHost() { return host; }
-    public String getPort() { return port; }
     public String getSid() { return sid; }
     public String getSchema() { return schema; }
-    public String getUsr() { return username; }
-    public String getPwd() { return password; }
 
 }

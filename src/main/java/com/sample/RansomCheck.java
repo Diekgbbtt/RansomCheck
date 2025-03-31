@@ -1,5 +1,15 @@
 package com.sample;
 
+<<<<<<< HEAD
+=======
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.utilities.TableDetails;
+import com.utilities.Toolbox;
+import com.utilities.Toolbox.databaseType;
+import com.utilities.WhereCondition;
+import com.utilities.InvalidIndexParametersException;
+
+>>>>>>> @{-1}
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
@@ -11,6 +21,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+<<<<<<< HEAD
+=======
+
+>>>>>>> @{-1}
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -56,17 +70,17 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	public String db_addParams;
 
 	// instantiate required objects - when masking algo will be instantiated by the  masking plugins interface these objects will be instantiated by java deafult no-args constructor for all classes, inherited from Object class
-	private LogService logger;
-	private Toolbox toolbox;
-	private Connection containerConnection;
-	private Connection targetTableConnection;
-	private ArrayList<String> values_list;
-	private WhereCondition condition;
-	private TableDetails resultRowData;
-	private TableDetails targetTableData;
-	private String checkQuery;
-	private ResultSet valuesClustersResultSet;
-	private JSONObject retrievedValuesClusters;
+	public LogService logger;
+	public Toolbox toolbox;
+	public Connection containerConnection;
+	public Connection targetTableConnection;
+	public ArrayList<String> values_list;
+	public WhereCondition condition;
+	public TableDetails resultRowData;
+	public TableDetails targetTableData;
+	public String checkQuery;
+	public ResultSet valuesClustersResultSet;
+	public JSONObject retrievedValuesClusters;
 	
 	//initialize required objects for the masking process 
 	@Override
@@ -74,14 +88,18 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 		this.logger = serviceProvider.getLogService();
 		this.toolbox = new Toolbox();
 		this.condition = null;
+<<<<<<< HEAD
 		this.values_list = new ArrayList<>();
+=======
+		this.values_list = new ArrayList<String>();
+>>>>>>> @{-1}
 		this.checkQuery = "";
 		this.valuesClustersResultSet = null;
 		this.retrievedValuesClusters = new JSONObject();
 	}
 	
 	// object to hold resutls table details
-	private void getResultRowData(GenericDataRow genericData) {
+	public void getResultRowData(GenericDataRow genericData) {
 		this.resultRowData.setDetails(
 			genericData.get("DATABASE_ID").getStringValue(),
 			genericData.get("TABLE_ID").getStringValue(),
@@ -92,21 +110,16 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	}
 	
 	// object to hold target table details, including all parameters required to connect to the target table
-	private void getTargetTableData() throws SQLException, ClassNotFoundException, IllegalArgumentException, InvalidIndexParametersException{
+	public void getTargetTableData() throws SQLException, ClassNotFoundException, IllegalArgumentException, InvalidIndexParametersException{
 		try{
 			this.containerConnection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType),db_hostname,db_port,db_instance,db_addParams,db_username,db_password );
-			ResultSet rs = toolbox.executeQuery(this.containerConnection, "SELECT TECHNOLOGY, HOSTNAME, PORT, COALESCE(SID, SERVICE, LOCATOR), DB_SCHEMA, TABLE_NAME, COLUMN_NAME, USERNAME, PASSWORD FROM ?.CHECK_VIEW_2 WHERE DB_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'", db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
+			ResultSet rs = toolbox.executeQuery(this.containerConnection, "SELECT DB_NAME, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM ?.CHECK_VIEW_2 WHERE DB_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'", db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
 			if(rs != null && rs.next()) {
 				this.targetTableData.setDetails(
-				rs.getString(1).split(" ")[0],
+				rs.getString(1),
 				rs.getString(2),
 				rs.getString(3),
-				rs.getString(4),
-				rs.getString(5),
-				rs.getString(6),
-				rs.getString(7),
-				rs.getString(8),
-				rs.getString(9)
+				rs.getString(4)
 				); 
 				rs.close();
 			} else { 
@@ -118,7 +131,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 		}
 	}
 	// get exepected values for the current checked column by the masking algorithm
-	private void getColumnExpectedValues() throws SQLException, ClassNotFoundException, InvalidIndexParametersException{
+	public void getColumnExpectedValues() throws SQLException, ClassNotFoundException, InvalidIndexParametersException{
 		ResultSet values_rs = toolbox.executeQuery(this.containerConnection, 
 								"SELECT DISTINCT VALUE FROM ?.CHECK_BASE WHERE ID_CHECK = (SELECT DISTINCT ID FROM ?.CHECK_2 WHERE DATABASE_ID = '?' AND TABLE_ID = '?' AND COLUMN_ID = '?'))", db_schema, db_schema, db_schema, resultRowData.getDb(), resultRowData.getTable(), resultRowData.getCol());
 		if(values_rs != null) { 
@@ -134,7 +147,7 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	}
 
 	// buld the fundamental dynamic part of the final query, the confront between expected and effective values inserted dinamically 
-	private void buildClusteringQuery() throws SQLException, ClassNotFoundException, InvalidIndexParametersException {
+	public void buildClusteringQuery() throws SQLException, ClassNotFoundException, InvalidIndexParametersException {
 		if(values_list.size() > 1) { // redundant values list retrieve for safety
 			condition.setValues(values_list);
 		} else { 
@@ -145,18 +158,22 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 		checkQuery += condition.getWhere();
 	}
 
-	private void extractColumnEffectiveValuesClusters() throws ClassNotFoundException, SQLException {
-			if(targetTableData.getTech().equals("DB2")) {
+	public void extractColumnEffectiveValuesClusters() throws ClassNotFoundException, SQLException {
+			if(db_dbType.equals("DB2")) {
 				db_addParams = ":securityMechanism=9;encryptionAlgorithm=2;defaultIsolationLevel=1;";
 			}
-			this.targetTableConnection = toolbox.prepareDBConnection(databaseType.valueOf(targetTableData.getTech()), targetTableData.getHost(), targetTableData.getPort(), targetTableData.getSid(), db_addParams, targetTableData.getUsr(), targetTableData.getPwd());
+			this.targetTableConnection = toolbox.prepareDBConnection(databaseType.valueOf(db_dbType), db_hostname, db_port, targetTableData.getSid(), db_addParams, db_username, db_password);
 			this.logger.info(checkQuery + " FROM " + targetTableData.getSchema() + ".\"" + targetTableData.getTable() + "\""); // log query for debugging
 			this.checkQuery += " FROM ?.\"?\""; // schema and tablename added later
 			this.valuesClustersResultSet = toolbox.executeQuery(this.targetTableConnection, checkQuery, targetTableData.getSchema(), targetTableData.getTable());
 	}
 
+<<<<<<< HEAD
 	@SuppressWarnings("unchecked")
 	private void parseEffectiveValues() throws SQLException {
+=======
+	public void parseEffectiveValues() throws SQLException {
+>>>>>>> @{-1}
 		HashMap<String, String> values = new HashMap<>();
 		if(this.valuesClustersResultSet != null) {
 			while(this.valuesClustersResultSet.next()) {
@@ -186,13 +203,21 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	}
 
 	// write good scenario, results are written 
+<<<<<<< HEAD
 	private void writeEffectiveValues() {
+=======
+	public void writeEffectiveValues() {
+>>>>>>> @{-1}
 			this.resultRowData.getResult().setValue(ByteBuffer.wrap(retrievedValuesClusters.toJSONString().getBytes(StandardCharsets.UTF_8)));
 			this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
 	}
 
 	// faulty scenario, desciption of the error is written
+<<<<<<< HEAD
 	private void writeEffectiveValues(String errorString) {
+=======
+	public void writeEffectiveValues(String errorString) {
+>>>>>>> @{-1}
 			this.resultRowData.getResult().setValue(ByteBuffer.wrap(errorString.getBytes(StandardCharsets.UTF_8)));
 			this.resultRowData.getTimestamp().setValue(LocalDateTime.now());
 	}
@@ -237,6 +262,10 @@ public class RansomCheck implements MaskingAlgorithm<GenericDataRow> {
 	public String getName() {
 		return "RansomCheck";
 	}
+<<<<<<< HEAD
 
 
 }
+=======
+}
+>>>>>>> @{-1}
